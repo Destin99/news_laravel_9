@@ -1,0 +1,127 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use Illuminate\Http\Request;
+use App\Models\NewsPost;
+use App\Models\Category;
+use App\Models\Subcategory;
+use Illuminate\Support\Facades\Session;
+use App;
+use Carbon\Carbon; 
+use Intervention\Image\Facades\Image;
+use DateTime;
+use App\Models\User;
+
+class IndexController extends Controller
+{
+    public function Index(){
+        // On affiche les nouveaux postes et les postes les plus populaires en comptant le nombre de visiteur
+        $newnewspost = NewsPost::orderBy('id','DESC')->limit(8)->get();
+        $newspopular = NewsPost::orderBy('view_count','DESC')->limit(8)->get();
+        return view('frontend.index', compact('newnewspost','newspopular'));
+    } // End Method 
+
+    public function NewsDetails($id,$slug){
+
+        $news = NewsPost::findOrFail($id);
+
+        $tags = $news->tags;
+        $tags_all = explode(',', $tags);
+
+        // Permet d'afficher les related post à partir du mm catégorie et des id !=
+        $cat_id = $news->category_id;
+        $relatedNews = NewsPost::where('category_id',$cat_id)->where('id','!=',$id)->orderBy('id','DESC')->limit(6)->get();
+
+        $newsKey = 'blog' . $news->id;
+        if (!Session::has($newsKey)) {
+           $news->increment('view_count');
+           Session::put($newsKey,1);
+        }
+// On affiche les nouveaux postes et les postes les plus populaires en comptant le nombre de visiteur
+        $newnewspost = NewsPost::orderBy('id','DESC')->limit(8)->get();
+        $newspopular = NewsPost::orderBy('view_count','DESC')->limit(8)->get();
+
+        return view('frontend.news.news_details',compact('news','tags_all','relatedNews','newnewspost','newspopular'));
+
+    }// End Method 
+
+    public function CatWiseNews($id,$slug){
+
+        $news = NewsPost::where('status',1)->where('category_id',$id)->orderBy('id','DESC')->get();
+
+        $breadcat = Category::where('id',$id)->first();
+
+        $newstwo = NewsPost::where('status',1)->where('category_id',$id)->orderBy('id','DESC')->limit(2)->get();
+
+       $newnewspost = NewsPost::orderBy('id','DESC')->limit(8)->get();
+        $newspopular = NewsPost::orderBy('view_count','DESC')->limit(8)->get();
+
+        return view('frontend.news.category_news',compact('news','breadcat','newstwo','newnewspost','newspopular'));
+
+    }// End Method
+
+
+    public function SubCatWiseNews($id,$slug){
+
+        $news = NewsPost::where('status',1)->where('subcategory_id',$id)->orderBy('id','DESC')->get();
+
+        $breadsubcat = Subcategory::where('id',$id)->first();
+
+        $newstwo = NewsPost::where('status',1)->where('subcategory_id',$id)->orderBy('id','DESC')->limit(2)->get();
+
+        $newnewspost = NewsPost::orderBy('id','DESC')->limit(8)->get();
+        $newspopular = NewsPost::orderBy('view_count','DESC')->limit(8)->get();
+
+        return view('frontend.news.subcategory_news',compact('news','breadsubcat','newstwo','newnewspost','newspopular'));
+
+    }// End Method
+
+    public function Change(Request $request){
+
+        App::setLocale($request->lang);
+        session()->put('locale',$request->lang);
+
+        return redirect()->back();
+
+    }// End Method
+
+    public function SearchByDate(Request $request){
+
+        $date = new DateTime($request->date);
+        $formatDate = $date->format('d-m-Y');
+
+        $newnewspost = NewsPost::orderBy('id','DESC')->limit(8)->get();
+        $newspopular = NewsPost::orderBy('view_count','DESC')->limit(8)->get();
+
+        $news = NewsPost::where('post_date',$formatDate)->latest()->get();
+        return view('frontend.news.search_by_date',compact('news','formatDate','newnewspost','newspopular'));
+
+    }// End Method
+
+    public function NewsSearch(Request $request){
+
+
+        $request->validate(['search' => "required"]);
+
+        $item = $request->search;
+
+        $news = NewsPost::where('news_title','LIKE',"%$item%")->get();
+        $newnewspost = NewsPost::orderBy('id','DESC')->limit(8)->get();
+        $newspopular = NewsPost::orderBy('view_count','DESC')->limit(8)->get();
+
+        return view('frontend.news.search',compact('news','newnewspost','newspopular','item'));
+
+
+    }// End Method
+
+
+    public function ReporterNews($id){
+
+        $reporter = User::findOrFail($id);
+
+        $news = NewsPost::where('user_id',$id)->get();
+        return view('frontend.news.reporter_news_post',compact('reporter','news'));
+
+    }// End Method
+}
